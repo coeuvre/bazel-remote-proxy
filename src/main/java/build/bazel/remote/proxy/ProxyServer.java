@@ -1,8 +1,11 @@
 package build.bazel.remote.proxy;
 
+import com.google.common.collect.ImmutableList;
 import io.grpc.Channel;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import io.grpc.ServerInterceptor;
+import io.grpc.ServerInterceptors;
 import io.grpc.netty.NegotiationType;
 import io.grpc.netty.NettyChannelBuilder;
 import java.io.IOException;
@@ -16,12 +19,20 @@ public class ProxyServer {
         .forAddress(options.getProxyHost(), options.getProxyPort())
         .negotiationType(NegotiationType.PLAINTEXT);
     Channel proxyChannel = builder.build();
-    this.server = ServerBuilder.forPort(options.getPort())
-        .addService(new ProxyCapabilitiesService(proxyChannel))
-        .addService(new ProxyActionCacheService(proxyChannel))
-        .addService(new ProxyContentAddressableStorageService(proxyChannel))
-        .addService(new ProxyByteStreamService(proxyChannel))
-        .build();
+
+    ServerInterceptor headersInterceptor = new TracingMetadataUtils.ServerHeadersInterceptor();
+
+    ServerBuilder<?> serverBuilder = ServerBuilder.forPort(options.getPort());
+    ImmutableList.of(
+        new ProxyCapabilitiesService(proxyChannel),
+        new ProxyActionCacheService(proxyChannel),
+        new ProxyContentAddressableStorageService(proxyChannel),
+        new ProxyByteStreamService(proxyChannel),
+        new ProxyExecutionService(proxyChannel)
+    ).forEach(bindableService -> serverBuilder
+        .addService(ServerInterceptors.intercept(bindableService, headersInterceptor)));
+
+    this.server = serverBuilder.build();
   }
 
   public void serve() {

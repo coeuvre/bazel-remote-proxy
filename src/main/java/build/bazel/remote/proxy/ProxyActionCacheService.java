@@ -8,6 +8,7 @@ import io.grpc.Channel;
 import io.grpc.stub.StreamObserver;
 
 public class ProxyActionCacheService extends ActionCacheGrpc.ActionCacheImplBase {
+
   private final Channel proxyChannel;
 
   public ProxyActionCacheService(Channel proxyChannel) {
@@ -15,7 +16,8 @@ public class ProxyActionCacheService extends ActionCacheGrpc.ActionCacheImplBase
   }
 
   private ActionCacheGrpc.ActionCacheStub proxyStub() {
-    return ActionCacheGrpc.newStub(proxyChannel);
+    return ActionCacheGrpc.newStub(proxyChannel)
+        .withInterceptors(TracingMetadataUtils.attachMetadataFromContextInterceptor());
   }
 
   @Override

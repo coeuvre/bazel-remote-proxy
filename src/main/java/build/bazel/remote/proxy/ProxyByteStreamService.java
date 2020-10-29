@@ -11,6 +11,7 @@ import io.grpc.Channel;
 import io.grpc.stub.StreamObserver;
 
 public class ProxyByteStreamService extends ByteStreamGrpc.ByteStreamImplBase {
+
   private final Channel proxyChannel;
 
   public ProxyByteStreamService(Channel proxyChannel) {
@@ -18,7 +19,8 @@ public class ProxyByteStreamService extends ByteStreamGrpc.ByteStreamImplBase {
   }
 
   private ByteStreamGrpc.ByteStreamStub proxyStub() {
-    return ByteStreamGrpc.newStub(proxyChannel);
+    return ByteStreamGrpc.newStub(proxyChannel)
+        .withInterceptors(TracingMetadataUtils.attachMetadataFromContextInterceptor());
   }
 
   @Override

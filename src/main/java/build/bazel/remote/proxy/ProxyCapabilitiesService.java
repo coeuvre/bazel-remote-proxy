@@ -7,6 +7,7 @@ import io.grpc.Channel;
 import io.grpc.stub.StreamObserver;
 
 class ProxyCapabilitiesService extends CapabilitiesGrpc.CapabilitiesImplBase {
+
   private final Channel proxyChannel;
 
   public ProxyCapabilitiesService(Channel proxyChannel) {
@@ -14,7 +15,8 @@ class ProxyCapabilitiesService extends CapabilitiesGrpc.CapabilitiesImplBase {
   }
 
   private CapabilitiesGrpc.CapabilitiesStub proxyStub() {
-    return CapabilitiesGrpc.newStub(proxyChannel);
+    return CapabilitiesGrpc.newStub(proxyChannel)
+        .withInterceptors(TracingMetadataUtils.attachMetadataFromContextInterceptor());
   }
 
   @Override

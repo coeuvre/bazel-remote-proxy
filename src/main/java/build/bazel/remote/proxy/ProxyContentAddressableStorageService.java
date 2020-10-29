@@ -22,7 +22,8 @@ public class ProxyContentAddressableStorageService extends
   }
 
   private ContentAddressableStorageGrpc.ContentAddressableStorageStub proxyStub() {
-    return ContentAddressableStorageGrpc.newStub(proxyChannel);
+    return ContentAddressableStorageGrpc.newStub(proxyChannel)
+        .withInterceptors(TracingMetadataUtils.attachMetadataFromContextInterceptor());
   }
 
   @Override
