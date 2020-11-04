@@ -1,6 +1,7 @@
 package build.bazel.remote.proxy;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.AbstractScheduledService;
 import io.grpc.Channel;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -12,7 +13,7 @@ import java.io.IOException;
 
 public class ProxyServer {
 
-  private final Server server;
+  private final ServerBuilder<?> serverBuilder;
 
   ProxyServer(Options options) {
     NettyChannelBuilder builder = NettyChannelBuilder
@@ -22,7 +23,7 @@ public class ProxyServer {
 
     ServerInterceptor headersInterceptor = new TracingMetadataUtils.ServerHeadersInterceptor();
 
-    ServerBuilder<?> serverBuilder = ServerBuilder.forPort(options.getPort());
+    serverBuilder = ServerBuilder.forPort(options.getPort());
     ImmutableList.of(
         new ProxyCapabilitiesService(proxyChannel),
         new ProxyActionCacheService(proxyChannel),
@@ -31,21 +32,26 @@ public class ProxyServer {
         new ProxyExecutionService(proxyChannel)
     ).forEach(bindableService -> serverBuilder
         .addService(ServerInterceptors.intercept(bindableService, headersInterceptor)));
-
-    this.server = serverBuilder.build();
   }
 
   public void serve() {
-    try {
-      server.start();
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
+    while (true) {
+      Server server = serverBuilder.build();
+      try {
+        server.start();
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
 
-    try {
-      server.awaitTermination();
-    } catch (InterruptedException e) {
-      e.printStackTrace();
+      try {
+        // Shutdown the server to send GOAWAY frame
+        Thread.sleep(10000);
+        server.shutdown();
+        server.awaitTermination();
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+        break;
+      }
     }
   }
 
